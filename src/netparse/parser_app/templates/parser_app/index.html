@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NetParse</title>
+    <script src="https://unpkg.com/htmx.org@1.6.1"></script>
+    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-beta.1/dist/css/select2.min.css" rel="stylesheet" />
+    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-beta.1/dist/js/select2.min.js"></script>
+</head>
+
+<style>
+    /* parser_app/static/parser_app/style.css */
+
+    * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+        font-family: 'Helvetica Neue', Arial, sans-serif;
+    }
+
+    body {
+        background-color: #f0f0f0;
+        display: flex;
+        flex-direction: column;
+        height: 100vh;
+        overflow: hidden;
+    }
+
+    .container {
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        height: 100%;
+        padding: 20px;
+    }
+
+    .header {
+        padding: 20px;
+        text-align: center;
+        border-radius: 8px;
+    }
+
+    .header h1 {
+        font-size: 2.5em;
+        font-weight: bold;
+        color: #333;
+    }
+
+    .header p {
+        font-size: 1.2em;
+        color: #555;
+    }
+
+    .dropdown-box {
+        background-color: #e9ecef;
+        padding: 20px;
+        border-radius: 8px;
+        border: 1px solid #ccc;
+        margin-bottom: 20px;
+        flex: 1;
+    }
+
+    .dropdown-box input,
+    .dropdown-box select {
+        width: 100%;
+        padding: 10px;
+        margin-top: 10px;
+        margin-bottom: 10px;
+        font-size: 16px;
+    }
+
+    .text-area-container {
+        display: flex;
+        justify-content: space-between;
+        flex: 3;
+        gap: 20px;
+    }
+
+    .textarea-wrapper {
+        position: relative;
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+    }
+
+    textarea {
+        flex: 1;
+        width: 100%;
+        height: 100%;
+        font-size: 16px;
+        padding: 20px;
+        border: 1px solid #ccc;
+        border-radius: 8px;
+        resize: none;
+    }
+
+    .parse-button {
+        padding: 20px;
+        background-color: #28a745;
+        color: white;
+        font-size: 20px;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: background-color 0.3s;
+        width: 20%;
+        align-self: center;
+        margin-top: 20px;
+    }
+
+    .parse-button:hover {
+        background-color: #218838;
+    }
+
+    .copy-icon {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        cursor: pointer;
+        font-size: 20px;
+        color: #007bff;
+        background-color: transparent;
+        border: none;
+    }
+
+    .copy-icon:hover {
+        color: #0056b3;
+    }
+
+    #loading-spinner {
+        display: none;
+        text-align: center;
+        font-size: 18px;
+        color: #007bff;
+    }
+
+    @media (max-width: 768px) {
+        .text-area-container {
+            flex-direction: column;
+        }
+
+        .parse-button {
+            width: 100%;
+        }
+    }
+</style>
+
+<body>
+    <div class="container">
+        <!-- Header Section -->
+        <div class="header">
+            <h1>NetParse</h1>
+            <p>A simple network command parser</p>
+        </div>
+
+        <!-- Dropdown and Search bar box -->
+        <div class="dropdown-box">
+            <h2>Select a Parser</h2>
+            <!-- Search bar -->
+            <input type="text" id="search" placeholder="Search parsers..." onkeyup="filterParsers()">
+            <!-- Command parser dropdown -->
+            <select id="parser_choice" name="parser_choice" size="8">
+                {% for parser in parsers %}
+                <option value="{{ parser }}">{{ parser }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <!-- Text areas for raw and parsed output -->
+        <div class="text-area-container">
+            <!-- Raw text input -->
+            <div class="textarea-wrapper">
+                <label for="raw_output" style="margin-bottom: 10px;">Raw Device Output</label>
+                <textarea id="raw_output" name="raw_output"
+                    placeholder="Enter raw device command output here"></textarea>
+            </div>
+
+            <!-- Parsed output with copy button -->
+            <div class="textarea-wrapper">
+                <label for="parsed_output" style="margin-bottom: 10px;">Parsed Output (JSON)</label>
+                <textarea id="parsed_output" name="parsed_output"
+                    placeholder="Parsed output will appear here"></textarea>
+                <span class="copy-icon" onclick="copyToClipboard()">📋</span> <!-- Clipboard icon -->
+            </div>
+        </div>
+
+        <!-- Parse button -->
+        <div id="loading-spinner">Loading...</div>
+        <button class="parse-button" id="parse-button" hx-post="/parse/" hx-target="#parsed_output" hx-swap="innerHTML"
+            hx-include="#raw_output, #parser_choice"
+            hx-trigger="click, #loading-spinner:show, #loading-spinner:hide after 2s"
+            hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>
+            Parse
+        </button>
+    </div>
+
+    <script>
+        // Function to filter the dropdown list based on search input
+        function filterParsers() {
+            var input, filter, select, options, i;
+            input = document.getElementById('search');
+            filter = input.value.toUpperCase().trim();
+            select = document.getElementById('parser_choice');
+            options = select.getElementsByTagName('option');
+
+            for (i = 0; i < options.length; i++) {
+                txtValue = options[i].textContent || options[i].innerText;
+                if (txtValue.toUpperCase().replace(/_/g, ' ').includes(filter)) {
+                    options[i].style.display = "";
+                } else {
+                    options[i].style.display = "none";
+                }
+            }
+        }
+
+        // Function to copy parsed output to clipboard
+        function copyToClipboard() {
+            var parsedOutput = document.getElementById("parsed_output");
+            parsedOutput.select();
+            document.execCommand("copy");
+
+            // Create a tooltip that says "Copied!"
+            var tooltip = document.createElement("span");
+            tooltip.innerText = "Copied!";
+            tooltip.style.position = "absolute";
+            tooltip.style.top = "10px";
+            tooltip.style.right = "40px";
+            tooltip.style.backgroundColor = "#007bff";
+            tooltip.style.color = "#fff";
+            tooltip.style.padding = "5px";
+            tooltip.style.borderRadius = "5px";
+            document.body.appendChild(tooltip);
+
+            // Remove tooltip after 1 second
+            setTimeout(() => document.body.removeChild(tooltip), 1000);
+        }
+
+        // Function to get the CSRF token from cookies
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+
+        // Include the CSRF token in all HTMX requests
+        document.body.addEventListener('htmx:configRequest', (event) => {
+            const csrfToken = getCookie('csrftoken');
+            if (csrfToken) {
+                event.detail.headers['X-CSRFToken'] = csrfToken;
+            }
+        });
+    </script>
+</body>
+
+</html>

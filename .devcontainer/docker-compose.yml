@@ -1,0 +1,10 @@
+version: '3.8'
+
+services:
+  app:
+    build:
+      args:
+        POETRY_ARGS: "--with dev"
+    image: netparse-app-development
+    command: sleep infinity
+    entrypoint: ""

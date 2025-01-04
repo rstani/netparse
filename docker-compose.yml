@@ -1,0 +1,16 @@
+version: "3.8"
+
+x-base: &base
+  build:
+    context: .
+  image: netparse:0.0.1
+  environment:
+    - test_var=${test_var:-sample}
+
+services:
+  app:
+    <<: *base
+    ports:
+      - ${EXPOSED_PORT:-8000}:8000
+    volumes:
+      - .:/usr/src/app
