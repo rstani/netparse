@@ -114,6 +114,21 @@
         background-color: #218838;
     }
 
+    .ai-button {
+        background-color: #6a0dad;
+        color: white;
+        font-size: 20px;
+        padding: 20px;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+
+    .ai-button:hover {
+        background-color: #38045d;
+    }
+
     .copy-icon {
         position: absolute;
         top: 10px;
@@ -194,6 +209,12 @@
             hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>
             Parse
         </button>
+        <button class="parse-button ai-button" id="parse-ai-button" hx-post="/parsewithai/" hx-target="#parsed_output"
+            hx-swap="innerHTML" hx-include="[name='raw_output']" hx-trigger="click"
+            hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}' hx-on::before-request="disableInput()"
+            hx-on::after-request="enableInput()">
+            ✨ Parse with AI ✨
+        </button>
     </div>
 
     <script>
@@ -252,7 +273,6 @@
             }
             return cookieValue;
         }
-
         // Include the CSRF token in all HTMX requests
         document.body.addEventListener('htmx:configRequest', (event) => {
             const csrfToken = getCookie('csrftoken');

@@ -1,19 +1,22 @@
+import json
 import logging
 import os
 import re
 from functools import lru_cache
+from typing import Any, Dict
 
+import requests
 import textfsm
-from django.http import JsonResponse
+from django.http import HttpRequest, JsonResponse
 from django.shortcuts import render
 from django.utils.html import escape
 
-#from dotenv import load_dotenv
+# from dotenv import load_dotenv
 from genie.conf.base import Device  # Import the Device class
 from genie.libs.parser.utils import get_parser
 
 # Load environment variables
-#load_dotenv()
+# load_dotenv()
 
 # Configure a basic logger
 logger = logging.getLogger(__name__)
@@ -142,3 +145,30 @@ def parse_command(request):
             return JsonResponse({"error": "Unexpected error occurred"}, status=500)
 
     return JsonResponse({"error": "Invalid request"}, status=400)
+
+
+def parse_with_ai(request):
+    if request.method == "POST":
+        raw_input = request.POST.get("raw_output", "").strip()
+
+        if not raw_input:
+            return JsonResponse({"error": "No input provided"}, status=400)
+
+        ollama_api_url = "http://host.docker.internal:11434/api/generate"
+        payload = {
+            "model": "deepseek-r1:14b",
+            "prompt": (
+                "Extract the following data into JSON. Strictly return raw JSON output with no explanations, "
+                "no markdown formatting, and no extra text. The JSON should have a single key `parsed_output` "
+                "containing the structured parsed data as its value:\n\n"
+                f"{raw_input}"
+            ),
+            "temperature": 0.2,
+            "stream": False,
+        }
+
+        print(f"Request Payload: {payload}")  # Debugging
+
+        response = requests.post(ollama_api_url, json=payload, timeout=120)
+        response_data = response.json().get("response", "{}")
+        return JsonResponse({"success": True, "data": response_data})
